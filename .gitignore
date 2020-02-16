@@ -1,0 +1,5 @@
+env/
+twivents.egg-info/
+.vscode/
+__pycache__/
+data/
