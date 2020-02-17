@@ -3,7 +3,8 @@ import string
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
+from nltk.stem import WordNetLemmatizer, PorterStemmer
+
 
 from .utils.config import parse_letters
 
@@ -20,6 +21,9 @@ class Preprocessor():
 
         if 'l' in actions:
             self.lem = WordNetLemmatizer()
+
+        if 'm' in actions:
+            self.stem = PorterStemmer()
 
     def process_tweet(self, tweet):
         text = self.metadata(tweet)
@@ -54,7 +58,8 @@ class Preprocessor():
     def lemmatizer(self, text):
         return [self.lem.lemmatize(w) for w in text]
 
-    # stemmer
+    def stemmer(self, text):
+        return [self.stem.stem(w) for w in text]
 
     @staticmethod
     def metadata(tweet):
@@ -92,5 +97,6 @@ pos_actions = {
     'w': Preprocessor.whitespaces,
     't': Preprocessor.tokenize,
     's': Preprocessor.stop_words,
-    'l': Preprocessor.lemmatizer
+    'l': Preprocessor.lemmatizer,
+    'm': Preprocessor.stemmer
 }
