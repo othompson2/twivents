@@ -25,7 +25,7 @@ def process(status):
         'text': status['full_text'],
         'user': status['user']['id_str'],
         'hashtags': [h['text'] for h in status['entities']['hashtags']],
-        'mentions': [re.sub(r'[^A-Za-z0-9\s]+', '', m['name']) for m in status['entities']['user_mentions']]
+        'mentions': [re.sub(r'[^A-Za-z0-9\s]+', '', m['name']) for m in status['entities']['user_mentions']] # dont leave this
         # 'favourite_count': status['favorite_count'],
         # 'retweet_count': status['retweet_count'],
         # 'possibly_sensitive': hasattr(status, 'possibly_sensitive'),
