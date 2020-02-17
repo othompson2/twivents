@@ -1,4 +1,5 @@
 import json
+import os
 
 from .utils.config import parse_args, parse_opt
 from .utils import tweets
@@ -7,15 +8,17 @@ from .preprocess import Preprocessor
 from .utils import timing
 
 
-def preprocess(filepath, actions):
+def preprocess(inpath, actions, outpath=''):
     pre = Preprocessor(actions)
 
     proc, lang, dup, non = 0, 0, 0, 0
     tweet_ids = set()
     # open up file
-    # need to get url of directory cmd called from
-    with open('/home/olly/VSCode/twivents/data/hurrican_dorian', 'r', encoding="utf-8") as infile:
-        with open('temp.txt', 'w', encoding="utf-8") as outfile:
+    
+    outpath = inpath + '_preprocessed' # temp, doesn't take extensions into account
+
+    with open(inpath, 'r', encoding="utf-8") as infile:
+        with open(outpath, 'w', encoding="utf-8") as outfile:
             for cnt, line in enumerate(infile):
                 tweet = tweets.load(line)
                 # only care about english tweets
@@ -46,8 +49,8 @@ def preprocess(filepath, actions):
     # apply actions to file
 
 
-def all(filepath, actions):
-    preprocess(filepath, actions)
+def all(inpath, actions, outpath=''):
+    preprocess(inpath, actions)
 
 
 def main():
@@ -57,9 +60,10 @@ def main():
     modes = ['all', 'preprocess']
     mode = parse_opt("mode", modes, options.mode)
 
-    # dynamically call mode
+    inpath = os.path.join(os.getcwd(), options.input)
 
-    preprocess(options.filepath, options.preprocess)  # temp
+    # dynamically call mode
+    preprocess(inpath, options.preprocess)  # temp
 
 
 if __name__ == '__main__':

@@ -11,7 +11,8 @@ def parse_args():
     # generic
     p.add('-c', '--config', is_config_file=True, help='config file path')
     p.add('-v', action='store_true', help='verbose')
-    p.add('-f', '--filepath', required=True, help='file path')
+    p.add('-i', '--input', required=True, help='input file name')
+    p.add('-o', '--output', help='output file name')
     p.add('-m', '--mode', help='program mode')
     p.add('-p', '--preprocess', help='preprocess actions to be applied')
 
