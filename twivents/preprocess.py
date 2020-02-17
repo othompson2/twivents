@@ -7,11 +7,13 @@ from nltk.stem import WordNetLemmatizer
 
 from .utils.config import parse_letters
 
+
 class Preprocessor():
 
     def __init__(self, actions):
         parse_letters(pos_actions.keys(), actions)
-        self.actions = [v for (k, v) in pos_actions.items() if k in actions] # maintains order
+        self.actions = [v for (k, v) in pos_actions.items()
+                        if k in actions]  # maintains order
 
         if 's' in actions:
             self.s_words = set(stopwords.words('english'))
@@ -20,7 +22,7 @@ class Preprocessor():
             self.lem = WordNetLemmatizer()
 
     def process_tweet(self, tweet):
-        text = self.remove_metadata(tweet)
+        text = self.metadata(tweet)
 
         return self.process_text(text)
 
@@ -54,46 +56,32 @@ class Preprocessor():
 
     # stemmer
 
-
     @staticmethod
-    def remove_metadata(tweet):
+    def metadata(tweet):
         slices = []
         entities = tweet['entities']
-        #Strip out the urls.
-        if 'urls' in entities:
-            for url in entities['urls']:
-                slices += [{'start': url['indices'][0], 'stop': url['indices'][1]}]
-        
-        #Strip out the hashtags.
-        if 'hashtags' in entities:
-            for tag in entities['hashtags']:
-                slices += [{'start': tag['indices'][0], 'stop': tag['indices'][1]}]
-        
-        #Strip out the user mentions.
-        if 'user_mentions' in entities:
-            for men in entities['user_mentions']:
-                slices += [{'start': men['indices'][0], 'stop': men['indices'][1]}]
-        
-        #Strip out the symbols.
-        if 'symbols' in entities:
-            for sym in entities['symbols']:
-                slices += [{'start': sym['indices'][0], 'stop': sym['indices'][1]}]
-        
-        #Strip out the media.
+
+        metadata = ['urls', 'hashtags', 'user_mentions', 'symbols']
+        # get indices of metadata
+        for metatype in metadata:
+            if metatype in entities:
+                for m in entities[metatype]:
+                    slices += [{'start': m['indices'][0], 'stop': m['indices'][1]}]
+
+        # special case for media
         if 'extended_entities' in tweet:
             entities = tweet['extended_entities']
         if 'media' in entities:
-            for med in entities['media']:
-                slices += [{'start': med['indices'][0], 'stop': med['indices'][1]}]
-        
-        # Sort the slices from highest start to lowest.
+            for m in entities['media']:
+                slices += [{'start': m['indices'][0], 'stop': m['indices'][1]}]
+
+        # remove content from text using indices
+        # sort so don't have to use offsets
         slices = sorted(slices, key=lambda x: -x['start'])
-        
-        #No offsets, since we're sorted from highest to lowest.
         text = tweet['full_text']
         for s in slices:
             text = text[:s['start']] + text[s['stop']:]
-            
+
         return text
 
 
