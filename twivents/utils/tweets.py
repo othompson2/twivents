@@ -1,5 +1,7 @@
 import json
 import re
+import pytz
+from datetime import datetime
 
 
 def load(status):
@@ -10,7 +12,7 @@ def load(status):
     # if tweet is a retweet, adds nothing, only care about original tweet
     if 'retweeted_status' in status:
         status = status['retweeted_status']
-
+        
     return status
 
 
@@ -25,7 +27,7 @@ def process(status):
         'text': status['full_text'],
         'user': status['user']['id_str'],
         'hashtags': [h['text'] for h in status['entities']['hashtags']],
-        'mentions': [re.sub(r'[^A-Za-z0-9\s]+', '', m['name']) for m in status['entities']['user_mentions']] # dont leave this
+        'mentions': [re.sub(r'[^A-Za-z\s]+', '', m['name']) for m in status['entities']['user_mentions']] # dont leave this
         # 'favourite_count': status['favorite_count'],
         # 'retweet_count': status['retweet_count'],
         # 'possibly_sensitive': hasattr(status, 'possibly_sensitive'),
@@ -35,3 +37,6 @@ def process(status):
     }
 
     return tweet
+
+def timestamp(created_at):
+    return datetime.strptime(created_at,'%a %b %d %H:%M:%S +0000 %Y').replace(tzinfo=pytz.UTC)

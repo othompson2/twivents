@@ -17,6 +17,11 @@ setup(
     # production env
     install_requires=[
         'configargparse',
-        'nltk'
+        'nltk',
+        'numpy',
+        'gensim',
+        'cython',
+        'pytz',
+        'tweepy'
     ]
 )

@@ -1,11 +1,15 @@
 import json
 import os
+import streamz
+from dask.distributed import Client
+import time
 
 from .utils.config import parse_args, parse_opt
 from .utils import tweets
 from .preprocess import Preprocessor
 
 from .utils import timing
+from .tweet_stream import TwitterStream
 
 
 def preprocess(inpath, actions, outpath=''):
@@ -27,7 +31,7 @@ def preprocess(inpath, actions, outpath=''):
                     continue
 
                 tweet_id = tweet['id_str']
-                if tweet_id in tweet_ids:
+                if tweet_id in tweet_ids: # will cause memory issues in future
                     dup += 1
                     continue
                 tweet_ids.add(tweet_id)
@@ -48,22 +52,34 @@ def preprocess(inpath, actions, outpath=''):
 
     # apply actions to file
 
+def cluster(inpath):
+    pass
+
 
 def all(inpath, actions, outpath=''):
-    preprocess(inpath, actions)
+    preprocess(inpath, actions, outpath)
 
+def live(pre_actions):
+    preprocessor = Preprocessor(pre_actions)
+    client = Client(processes=False)
+    source = streamz.Stream()
+    source.scatter().map(preprocessor.process_tweet).buffer(5).gather().sink(print)
+
+    twitter_stream = TwitterStream(source)
+    twitter_stream.start()
 
 def main():
     options = parse_args()
 
     print(options)
-    modes = ['all', 'preprocess']
+    modes = ['all', 'preprocess', 'live']
     mode = parse_opt("mode", modes, options.mode)
 
-    inpath = os.path.join(os.getcwd(), options.input)
+    # inpath = os.path.join(os.getcwd(), options.input)
 
     # dynamically call mode
-    preprocess(inpath, options.preprocess)  # temp
+    # preprocess(inpath, options.preprocess)  # temp
+    live(options.preprocess)
 
 
 if __name__ == '__main__':
