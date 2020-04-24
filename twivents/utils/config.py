@@ -14,14 +14,11 @@ def parse_args():
     p.add('-i', '--input', help='input file name')
     p.add('-o', '--output', help='output file name')
     p.add('-m', '--mode', help='program mode')
-    p.add('-p', '--preprocess', help='preprocess actions to be applied')
 
     # make a setup function to download nltk resources:
     # stopwords, punkt, wordnet
 
     return p.parse_args()
-
-    #
 
 def parse_opt(opt_name, opts, input_opt):
     pos_opts = [o for o in opts if o.startswith(input_opt)]

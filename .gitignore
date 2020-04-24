@@ -4,3 +4,4 @@ twivents.egg-info/
 __pycache__/
 data/
 credentials.py
+*.json
