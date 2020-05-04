@@ -112,7 +112,7 @@ def main():
     buffer = []
     valid = 0
     last_merge = 0
-    for i in range(1, 1000001):
+    for i in range(1, 250001):
         if i % 10000 == 0:
             print(i)
 
