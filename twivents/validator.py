@@ -1,22 +1,28 @@
 from collections import Counter
 import numpy as np
+import json
 
 from .preprocessor import Preprocessor
 from .embedding_model import EmbeddingModel
 from .online_cluster import Document
 
 class Validator():
-    def __init__(self):
+    def __init__(self, config):
         self.pre = Preprocessor()
-        self.model = EmbeddingModel()
+        self.model = EmbeddingModel(config)
 
         self.filtered = Counter()
 
     def check(self, status, label=None):
-        # if tweet is a retweet, adds nothing, only care about original tweet
-        if 'retweeted_status' in status:
-            self.filtered.update(['retweet'])
+        # removes lines in jsonl which don't contain a valid tweet at all
+        if 'created_at' not in status:
+            self.filtered.update(['non_tweet'])
             return
+
+        # # if tweet is a retweet, adds nothing, only care about original tweet
+        # if 'retweeted_status' in status:
+        #     self.filtered.update(['retweet'])
+        #     return
 
         # only care about english tweets
         if status['lang'] != "en":
@@ -38,8 +44,11 @@ class Validator():
             return
 
         self.filtered.update(['valid'])
-        doc = Document(status, vec, label)
+        doc = Document(status, vec)
         return doc
+
+    def summary(self):
+        return json.dumps(self.filtered)
 
     def reset(self):
         self.filtered = Counter()

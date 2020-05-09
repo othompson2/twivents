@@ -1,0 +1,8 @@
+# development env
+'configargparse'
+'nltk'
+'numpy'
+'gensim'
+'cython'
+'pytz'
+'tweepy'

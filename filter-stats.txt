@@ -1,0 +1,12 @@
+background
+{"valid": 365824, "language": 760025, "retweet": 533809, "length": 156409, "non_tweet": 250991, "model_vocab": 4996}
+dallas
+{"language": 191435, "retweet": 3044835, "valid": 1142485, "length": 32254, "model_vocab": 874}
+dorian
+{"valid": 1622139, "language": 293563, "retweet": 6114376, "length": 41206, "model_vocab": 2359}
+fifa
+{"valid": 1149064, "language": 1617469, "retweet": 2696618, "length": 22996, "model_vocab": 685}
+florence
+{"retweet": 3242668, "valid": 734037, "language": 62230, "model_vocab": 840, "length": 6151}
+notre_dame
+{"retweet": 5180097, "language": 805033, "valid": 624198, "length": 7096, "model_vocab": 432}

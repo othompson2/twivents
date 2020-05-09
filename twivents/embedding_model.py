@@ -2,9 +2,9 @@ import gensim
 import numpy as np
 
 class EmbeddingModel():
-    def __init__(self):
-        # TODO: HARDCODED
-        self.model = gensim.models.KeyedVectors.load_word2vec_format('./data/GoogleNews-vectors-negative300.bin', binary=True)
+    def __init__(self, config):
+        if config.type == "word2vec":
+            self.model = gensim.models.KeyedVectors.load_word2vec_format(config.source, binary=True)
     
     def vocab(self):
         return self.model.vocab

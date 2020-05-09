@@ -11,20 +11,21 @@ from .preprocessor import Preprocessor
 from .embedding_model import EmbeddingModel
 
 class Document():
-    def __init__(self, doc, vec, label=None):
-        self.id = doc['id']
-        self.terms = set(doc['p_text'])
-        self.timestamp = format_timestamp(doc['created_at'])
+    def __init__(self, status, vec):
+        self.id = status['id']
+        self.terms = set(status['p_text'])
+        self.timestamp = format_timestamp(status['created_at'])
         self.vec = vec
-        self.label = label if label else self.id
+        self.label = status['label'] if 'label' in status else 'unlabelled'
 
 
 class Cluster():
-    def __init__(self, doc):
+    def __init__(self, mature_threshold, doc):
         # need unique id for cluster
         self.ids = {doc.id}
         self.labels = Counter([doc.label])
         self.doc_count = 1
+        self.mature_threshold = mature_threshold
         self.mature = False
         self.seen = False
         
@@ -43,8 +44,7 @@ class Cluster():
         self.labels.update([doc.label])
         self.doc_count += 1
 
-        # TODO: HARDCODED
-        if self.doc_count >= 25:
+        if self.doc_count >= self.mature_threshold:
             self.mature = True
         
         self.terms += Counter(doc.terms)
@@ -91,108 +91,116 @@ class Cluster():
         s = dict()
         s['doc_count'] = self.doc_count
         s['terms'] = self.top_terms
-        s['oldest_time'] = self.oldest_timestamp
-        s['newest_time'] = self.newest_timestamp
-        s['mean_time'] = self.mean_timestamp
         s['labels'] = self.labels
-        s['centroid'] = self.centroid
+        # s['oldest_time'] = self.oldest_timestamp
+        # s['newest_time'] = self.newest_timestamp
+        # s['mean_time'] = self.mean_timestamp
+        # s['centroid'] = self.centroid
         return s
-    
-    def alive(self):
-        # time based decay, remove when not alive
-        # maybe return probability instead so can set threshold
-        return True
 
 
 @ray.remote
-def max_cluster(vec, cluster_vecs):
+def max_cluster_remote(vec, cluster_vecs, threshold):
     # calculate similarity to each cluster
     sims = np.asarray([cosine_similarity(vec, cluster_vec) for cluster_vec in cluster_vecs])
     max_index = sims.argmax()
     max_sim = sims[max_index]
 
-    return max_sim, max_index
+    if max_sim > threshold:
+        return max_index
+
+def max_cluster(doc, clusters, threshold):
+    # calculate similarity to each cluster
+    sims = np.asarray([cosine_similarity(doc.vec, cluster.centroid) for cluster in clusters])
+    max_index = sims.argmax()
+    max_sim = sims[max_index]
+
+    if max_sim > threshold:
+        return max_index
 
 class OnlineClusterer():
-    def __init__(self, threshold=0.6):
-        self.threshold = threshold
+    def __init__(self, args):
+        self.add_threshold = args.add_threshold
+        self.merge_threshold = args.merge_threshold
+        self.mature_threshold = args.mature_threshold
+        self.merge_frequency = args.merge_frequency
+        self.remove_frequency = args.remove_frequency
+        self.summary_frequency = args.summary_frequency
+        
         self.clusters = []
+        self.new_clusters = []
 
+        self.count = 0
         self.current_time = datetime.now()
-
-    def add_docs(self, docs):
-        self.current_time = docs[-1].timestamp
-
-        new_clusters = []
-
-        if self.clusters:
-            cluster_vecs = ray.put([cluster.centroid for cluster in self.clusters])
-            cluster_sims = ray.get([max_cluster.remote(doc.vec, cluster_vecs) for doc in docs])
-
-            for doc, (max_sim, max_index) in zip(docs, cluster_sims):
-                # TODO: HARDCODED
-                if max_sim > self.threshold:
-                    self.clusters[max_index].add_doc(doc)
-                else:
-                    if new_clusters:
-                        sims = np.asarray([cosine_similarity(doc.vec, cluster.centroid) for cluster in new_clusters])
-                        max_index = sims.argmax()
-                        max_sim = sims[max_index]
-
-                        if max_sim > self.threshold:
-                            new_clusters[max_index].add_doc(doc)
-                            continue
-
-                    new_clusters.append(self.add_cluster(doc))
-
-        else:
-            for doc in docs:
-                if new_clusters:
-                    sims = np.asarray([cosine_similarity(doc.vec, cluster.centroid) for cluster in new_clusters])
-                    max_index = sims.argmax()
-                    max_sim = sims[max_index]
-
-                    if max_sim > self.threshold:
-                        new_clusters[max_index].add_doc(doc)
-                        continue
-
-                new_clusters.append(self.add_cluster(doc))
-    
 
     def add_doc(self, doc):
         self.current_time = doc.timestamp
         
         if self.clusters:
-            # calculate similarity to each cluster
-            sims = np.asarray([cosine_similarity(doc.vec, cluster.centroid) for cluster in self.clusters])
-            max_index = sims.argmax()
-            max_sim = sims[max_index]
-
-            # add tweet to cluster with max similarity if over threshold, return
-            if max_sim > self.threshold:
+            max_index = max_cluster(doc, self.clusters, self.add_threshold)
+            if max_index:
                 self.clusters[max_index].add_doc(doc)
                 return
                 
         # else create new cluster
-        self.add_cluster(doc)
-
-    def add_cluster(self, doc):
-        cluster = Cluster(doc)
+        cluster = Cluster(self.mature_threshold, doc)
         self.clusters.append(cluster)
-        return cluster
+
+    def add_docs(self, docs):
+        self.count += len(docs)
+        self.current_time = docs[-1].timestamp
+        self.new_clusters = []
+
+        if self.clusters:
+            cluster_vecs = ray.put([cluster.centroid for cluster in self.clusters])
+            cluster_sims = ray.get([max_cluster_remote.remote(doc.vec, cluster_vecs, self.add_threshold) for doc in docs])
+
+            for doc, max_index in zip(docs, cluster_sims):
+                if max_index:
+                    self.clusters[max_index].add_doc(doc)
+                else:
+                    self.form_clusters([doc])
+
+        else:
+            self.form_clusters(docs)
+
+        self.check_triggers()
+
+    def form_clusters(self, docs):
+        for doc in docs:
+            if self.new_clusters:
+                max_index = max_cluster(doc, self.new_clusters, self.add_threshold)
+                if max_index:
+                    self.new_clusters[max_index].add_doc(doc)
+                    continue
+
+            # else create new cluster
+            cluster = Cluster(self.mature_threshold, doc)
+            self.new_clusters.append(cluster)
+            self.clusters.append(cluster)
+
+    def check_triggers(self):
+        # remove trigger
+        if self.count % self.remove_frequency == 0:
+            self.remove_clusters()
+
+        # merge trigger
+        if self.count % self.merge_frequency == 0:
+            self.merge_clusters()
+
+        # summary trigger
+        if self.count % self.summary_frequency == 0:
+            self.summarize()
 
     def remove_clusters(self):
         for i in range(len(self.clusters)-1, 0, -1):
             cluster = self.clusters[i]
 
-            # TODO: HARDCODED
             if not cluster.mature and cluster.seen:
                 self.clusters.pop(i)
                 continue
 
             cluster.seen = True
-
-            # cluster.newest_timestamp < self.current_time - timedelta(minutes=2)
         
     def merge_clusters(self):
         # cycle through clusters in reverse order so indices remain consistent when a cluster 
@@ -202,43 +210,41 @@ class OnlineClusterer():
             c1 = self.clusters[i]
 
             if c1.mature:
+                # mature_clusters = [cluster if cluster.mature for cluster in self.clusters[:i]]
                 sims = np.asarray([cosine_similarity(c1.centroid, c2.centroid) if c2.mature else 0 for c2 in self.clusters[:i]])
                 max_index = sims.argmax()
                 max_sim = sims[max_index]
                 
-                # TODO: HARDCODED
-                if max_sim > 0.85:
-                    # pprint.pprint([max_sim, self.clusters[i].top_terms, self.clusters[max_index].top_terms])
+                if max_sim > self.merge_threshold:
                     self.clusters[max_index].merge(c1)
                     self.clusters.pop(i)
         
     def summarize(self):
-        s = dict()
-        s['cluster_count'] = len(self.clusters)
-        s['mature_cluster_count'] = len([cluster for cluster in self.clusters if cluster.mature])
-        s['clusters'] = [cluster.summarize() for cluster in self.clusters if cluster.mature]
-        return s
+        summary = dict()
+
+        summary['cluster_count'] = len(self.clusters)
+
+        mature_clusters = [cluster for cluster in self.clusters if cluster.mature]
+        summary['mature_cluster_count'] = len(mature_clusters)
+
+        clusters = [cluster.summarize() for cluster in self.clusters if cluster.mature]
+        clusters.sort(key=lambda c: c['doc_count'], reverse=True)
+        summary['clusters'] = clusters
+
+        # need to use folder from cmd
+        with open(f'output/summary_{self.count}.json', 'w') as out:
+            pprint.pprint(summary, stream=out)
+
+    def finialize(self):
+        for cluster in self.clusters:
+            cluster.seen = True
+        self.remove_clusters()
+        self.merge_clusters()
+        self.summarize()
     
     @staticmethod
     def similarity(doc, cluster):
         return cosine_similarity(doc.vec, cluster.centroid)
-
-    @staticmethod
-    def keyword_similarity(doc, cluster):
-        # each tweet keywords are just the words
-        
-        # only compare top 10 (maybe 20/30) words
-        # actually store 1000+ words to give them a chance to 'bubble' to the top
-        # when reach 1000 words, disregard oldest word with only 1 occurance and replace it with the new one
-        # cluster is mature when have 1000+ words with more than 1 occurance so dont care anymore
-        
-        # rather than keeping count, could set a base value then:
-        # decrease the value when a tweet is compared which countains the word
-        # increase the value x2 when a tweet is added which contains the word
-        # means words which influence whether a tweet is added improve, fixing the meaning of the cluster
-        # words which are more common in multiple clusters become less important
-        
-        pass
     
     @staticmethod
     def time_likelihood(doc, cluster):
@@ -252,13 +258,3 @@ class OnlineClusterer():
         # would have to scale to a reasonable number as dont know what would be 'active' etc
         
         pass
-
-
-@ray.remote
-def best_cluster(vec, cluster_vecs):
-    # calculate similarity to each cluster
-    sims = np.asarray([cosine_similarity(vec, cv) for cv in cluster_vecs])
-    max_index = sims.argmax()
-    max_sim = sims[max_index]
-
-    return max_index, max_sim

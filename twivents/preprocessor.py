@@ -1,3 +1,4 @@
+from pkg_resources import resource_string
 import re
 import string
 import nltk
@@ -9,8 +10,8 @@ from nltk.stem import WordNetLemmatizer, PorterStemmer
 class Preprocessor():
 
     def __init__(self):
-        with open('./data/stopwords.txt', 'r') as f:
-            self.s_words = [line.rstrip() for line in f]
+        words = resource_string(__name__, 'data/stopwords.txt').decode("utf-8")
+        self.s_words = words.split()
         # self.s_words = set(stopwords.words('english'))
 
     def process_tweet(self, tweet):
@@ -26,7 +27,7 @@ class Preprocessor():
             'text': tweet['full_text'] if 'full_text' in tweet else tweet['text'],
             'p_text': p_text,
             'hashtags': [h['text'] for h in tweet['entities']['hashtags']],
-            'mentions': [re.sub(r'[^A-Za-z\s]+', '', m['name']) for m in tweet['entities']['user_mentions']] # dont leave this
+            'label': tweet['label'] if 'label' in tweet else 'unlabelled'
         }
 
         return p_tweet
