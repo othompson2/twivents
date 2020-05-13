@@ -1,10 +1,15 @@
 from pkg_resources import resource_filename
 from configargparse import ArgParser
 
+def string2bool(value):
+    if value.lower() in {'false', 'f', '0', 'no', 'n'}:
+        return False
+    elif value.lower() in {'true', 't', '1', 'yes', 'y'}:
+        return True
+    raise ValueError(f'{value} is not a valid boolean value')
 
 def parse():
     configpath = resource_filename(__name__, '../data/config.ini')
-    print(configpath)
     p = ArgParser(default_config_files=[configpath])
 
     # GENERAL
@@ -12,7 +17,7 @@ def parse():
     general.add('-c', '--config', is_config_file=True, help='config file path')
     general.add('-v', action='store_true', help='verbose')
     general.add('-m', '--mode', help='program mode')
-    general.add('--multiprocessing', type=bool)
+    general.add('--multiprocessing', type=string2bool, nargs='?', const=True, default=False)
     general.add('--cores', type=int)
 
     # CLUSTERS
@@ -33,8 +38,8 @@ def parse():
     datasets = p.add_argument_group('Datasets')
     datasets.add('--background', type=str)
     datasets.add('--background_weight', type=float)
-    datasets.add('--filter', type=bool)
-    datasets.add('--merge', type=bool)
+    datasets.add('--filter', type=string2bool, nargs='?', const=True, default=False)
+    datasets.add('--merge', type=string2bool, nargs='?', const=True, default=False)
 
     # p.add('-i', '--input', help='input file name')
     # p.add('-o', '--output', help='output file name')

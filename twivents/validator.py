@@ -19,10 +19,10 @@ class Validator():
             self.filtered.update(['non_tweet'])
             return
 
-        # # if tweet is a retweet, adds nothing, only care about original tweet
-        # if 'retweeted_status' in status:
-        #     self.filtered.update(['retweet'])
-        #     return
+        # if tweet is a retweet, adds nothing, only care about original tweet
+        if 'retweeted_status' in status:
+            self.filtered.update(['retweet'])
+            return
 
         # only care about english tweets
         if status['lang'] != "en":

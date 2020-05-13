@@ -17,12 +17,15 @@ def main():
         ray.init(num_cpus=args.cores)
 
     # TODO: get filenames dynamically
-    filenames = ['background',
-                'dallas',
-                'dorian',
-                'fifa',
-                'florence',
-                'notre_dame']
+    filenames = [
+        'background',
+        'dallas',
+        'dorian',
+        'fifa',
+        'notre_dame'
+    ]
+
+    # filenames = ['merged_background_0.4']
 
     validator = Validator(args)
 

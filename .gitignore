@@ -3,3 +3,4 @@ twivents.egg-info/
 .vscode/
 __pycache__
 *.json
+credentials.ini

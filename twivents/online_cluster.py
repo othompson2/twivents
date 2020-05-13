@@ -6,6 +6,9 @@ from sortedcontainers import SortedList
 import pprint
 import ray
 
+from sklearn import metrics
+
+
 from .utils.utils import format_timestamp, cosine_similarity
 from .preprocessor import Preprocessor
 from .embedding_model import EmbeddingModel
@@ -134,6 +137,7 @@ class OnlineClusterer():
         self.current_time = datetime.now()
 
     def add_doc(self, doc):
+        self.count += 1
         self.current_time = doc.timestamp
         
         if self.clusters:
@@ -241,10 +245,6 @@ class OnlineClusterer():
         self.remove_clusters()
         self.merge_clusters()
         self.summarize()
-    
-    @staticmethod
-    def similarity(doc, cluster):
-        return cosine_similarity(doc.vec, cluster.centroid)
     
     @staticmethod
     def time_likelihood(doc, cluster):
